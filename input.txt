@@ -1,2 +1,2 @@
-T->T+T#T*T#T/T#T-T#id#T=T
+T->T+T#T=T#T-T#T*T#T/T#id#T!=T#T==T
 

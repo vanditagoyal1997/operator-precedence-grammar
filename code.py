@@ -1,13 +1,18 @@
 from stack import stack
 #opening file
 ff= open("input.txt", "r")
+fp=open("precedence.txt","r")
 #reading line
 line = ff.readlines()
+precline=fp.readlines()
 #total number of lines
 count_lines=len(line)
+count_preclines=len(precline)
 parsestack=stack()
 production={}
-operator={'+':8,'-':8,'*':9,'/':9,'&':5,'|':4,'>':7,'<':7,'!=':6,'==':6,'=':1,'&&':3,'||':2,'id':10,'$':0}
+operator={'$':[0,'']}
+precrel=[]
+precrelorder={}
 
 #parse the sentence
 def parse(ip):
@@ -19,32 +24,46 @@ def parse(ip):
 			while parsestack.st[top2] not in operator.keys() and top2>0:
 				top2-=1
 		#print("top2="+str(top2))
-		a=operator[parsestack.st[top2]]
-		b=operator[ip[i]]
-		if parsestack.st[top2]==ip[i]:
+		ipo=ip[i]
+		if (parsestack.st[top2] not in precrelorder.keys()):
+			return "error"
+	
+		if ipo!='id' and ipo!='$':	
+			j=i+1
+			while(ip[j]!='id' and ip[j]!='$'):
+				ipo=ipo+ip[j]
+				j=j+1
+			if (ipo not in precrelorder.keys()):
+				print(ipo)
+				return "error"
+		a=precrelorder[parsestack.st[top2]]
+		b=precrelorder[ipo]
+		if parsestack.st[top2]==ipo:
 			if parsestack.st[top2]=='$':
 				return "accepted"
 			elif parsestack.st[top2]=='id':
+				print (len(ipo))
 				return "error"
-		if a==b:
-			if ip[i]=='=':
-				b=b+1
-			else:
-				a=a+1
+		action=precrel[b][a]
 			
-		if a<b:
+		if action=='>':
 			#shift
-			print("shift:"+ip[i])
-			parsestack.push(ip[i])
+			print("shift:"+ipo)
+			parsestack.push(ipo)
 			print(parsestack.st)
 			print("\n")
-			i+=1
-		else: 
+			if (ipo=='id'):
+				i+=1
+			else:
+				i+=len(ipo)
+		elif action=='<': 
 			#reduce
-			print("reduce "+ip[i]+" "+parsestack.st[top2])
+			print("reduce "+ipo+" "+parsestack.st[top2])
 			temp=""
 			while(temp not in production.keys()):
 				d=parsestack.pop()
+				if d=="empty":
+					return "error"
 				temp=d+temp
 			for k in production.keys():
 				if k==temp:
@@ -90,16 +109,17 @@ def checkopgram():
           			if len(txt[j])==2:
                  			if txt[j][0] not in operator.keys():
                       				if 'id' not in txt[j]:
-                        	   			print "invalid production(2)",i+j+1 
+                        	   			print "invalid production(2) (No recognisable operator)",i+j+1 
 				   			exit(0)                     
           			if len(txt[j])==3:
                  			if txt[j][len(txt[j])-2] not in operator.keys():
                       				if 'id' not in txt[j]:
-                        	   			print "invalid production(2)",i+j+1
+                        	   			print "invalid production(2) (No recognisable operator)",i+j+1
 				   			exit(0)
           			if len(txt[j])==4:
-                 			if txt[j][len(txt[j])-2] not in operator and txt[j][len(txt[j])-3] not in operator.keys():
-                      				print "invalid production(3)",i+j+1
+                 			if txt[j][len(txt[j])-3]+txt[j][len(txt[j])-2] not in operator.keys():
+						print txt[j][len(txt[j])-2]+txt[j][len(txt[j])-3]
+                      				print "invalid production(3) (No recognisable operator)",i+j+1
 		      				exit(0)
 			temp=[]
 				
@@ -109,12 +129,84 @@ def checkopgram():
 			print("invalid production in line:"+str(i))
 			exit(0)
 	print("valid grammar\n")
-			
+def genprectable():
+	for i in range(0,count_preclines):
+		precline[i]=precline[i].strip()
+		if precline[i]=='':
+			continue
+		if precline[i][0]=='l' or precline[i][0]=='r':
+			order=precline[i].split(" ")
+			prec=order[1]
+			if ',' in prec:
+				prec=prec.split(',')
+				for j in prec:
+					tempprec=[]
+					tempprec.append(i+1)
+					tempprec.append(order[0])
+					operator[j]=tempprec
+			else:
+				tempprec=[]
+				tempprec.append(i+1)
+				tempprec.append(order[0])
+				operator[prec]=tempprec
+	tempprec=[count_preclines+1,'']
+	operator['id']=tempprec
+	print(operator)
+	lop=operator.keys()
+	for i in range(len(lop)):
+		precrelorder[lop[i]]=i
+	for i in lop:
+		tempprecrel=[]
+		if i=='$':
+			for j in lop:
+				if operator[i][0]>operator[j][0]:
+					tempprecrel.append('>')
+				elif operator[i][0]<operator[j][0]:
+					tempprecrel.append('<')
+				else:
+					tempprecrel.append("a")
+			precrel.append(tempprecrel)
+
+		elif i=='id':
+			for j in lop:
+				if operator[i][0]>operator[j][0]:
+					tempprecrel.append('>')
+				elif operator[i][0]<operator[j][0]:
+					tempprecrel.append('<')
+				else:
+					tempprecrel.append("e")
+			precrel.append(tempprecrel)
+		else:
+			for j in lop:
+				if operator[i][0]>operator[j][0]:
+					tempprecrel.append('>')
+				elif operator[i][0]<operator[j][0]:
+					tempprecrel.append('<')
+				else:
+					if operator[i][1]=='l':
+						tempprecrel.append('>')
+					elif operator[i][1]=='r':
+						tempprecrel.append('<')
+			precrel.append(tempprecrel)
+	print "\t",
+	for i in lop:
+		print i+"\t",
+	print('\n')
+	for i in range(len(precrel)):
+		print lop[i],"\t",
+		for j in precrel[i]:
+			print j,"\t",
+		print('\n')
+	#print(precrelorder)
 def main():
 	ips=input("enter the sentence you want to parse:")
+	#ips=ips.split(" ")
 	ip=[]
+	print("generation of precedence table:\n")
+	genprectable()
 	print("checking whether grammar provided is operator grammar or not")
 	checkopgram()
+	
 	for i in ips:
 		if i.isalpha():
 			ip.append('id')
